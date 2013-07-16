@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
-# Optimize all indices with a datestamp newer than "days-to-optimize" for daily
-# if you have hourly indices, it will optimize all of those newer than "hours-to-optimize"
+# Optimize all indices with a datestamp olrder than "days-to-optimize" for daily
+# if you have hourly indices, it will optimize all of those older than "hours-to-optimize"
 #
 # This script presumes an index is named typically, e.g. logstash-YYYY.MM.DD
 # It will work with any name-YYYY.MM.DD or name-YYYY.MM.DD.HH type sequence
@@ -102,7 +102,7 @@ def find_indices_to_optimize(connection, days_to_optimize=None, hours_to_optimiz
         index_epoch = get_index_epoch(unprefixed_index_name)
 
         # if the index is older than the cutoff
-        if index_epoch > cutoff:
+        if index_epoch < cutoff:
             yield index_name, cutoff-index_epoch
 
         else:
@@ -123,9 +123,9 @@ def main():
     connection = pyes.ES('{0}:{1}'.format(arguments.host, arguments.port), timeout=arguments.timeout)
 
     if arguments.days_to_optimize:
-        print 'Optimizing daily indices newer than {0} days.'.format(arguments.days_to_optimize)
+        print 'Optimizing daily indices older than {0} days.'.format(arguments.days_to_optimize)
     if arguments.hours_to_optimize:
-        print 'Optimizing hourly indices newer than {0} hours.'.format(arguments.hours_to_optimize)
+        print 'Optimizing hourly indices older than {0} hours.'.format(arguments.hours_to_optimize)
 
     print ''
 
@@ -133,12 +133,12 @@ def main():
         expiration = timedelta(seconds=to_optimize)
 
         if arguments.dry_run:
-            print 'Would have attempted optimizing index {0} because it is {1} newer than the calculated cutoff.'.format(index_name, abs(expiration))
+            print 'Would have attempted optimizing index {0} because it is {1} older than the calculated cutoff.'.format(index_name, abs(expiration))
             continue
 
-        print 'Optimizing index {0} because it is {1} newer than cutoff.'.format(index_name, abs(expiration))
+        print 'Optimizing index {0} because it is {1} older than cutoff.'.format(index_name, abs(expiration))
 
-        optimization = connection.optimize(index_name)
+        optimization = connection.indices.optimize(indices=index_name, max_num_segments=2)
         # ES returns a dict on the format {u'acknowledged': True, u'ok': True} on success.
         if optimization.get('ok'):
             print 'Successfully optimized index: {0}'.format(index_name)
